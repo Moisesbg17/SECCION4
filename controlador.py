@@ -1,21 +1,17 @@
 from flask import Flask, render_template, request, jsonify, redirect, url_for
 import models as dbase
 from product import Product
+from bson import ObjectId
 
-# Conexión a la base de datos
 db = dbase.dbConnection()
-
-# Inicializar la app
 app = Flask(__name__)
 
-# Ruta principal: muestra los productos
 @app.route('/')
 def inicio():
-    products = db['products']  # Colección "products"
-    productsReceived = products.find()  # Obtener todos los productos
+    products = db['products']
+    productsReceived = products.find()
     return render_template('index.html', products=productsReceived)
 
-# Ruta para agregar productos desde un formulario
 @app.route('/products', methods=['POST'])
 def addProduct():
     products = db['products']
@@ -30,7 +26,28 @@ def addProduct():
     else:
         return notFound()
 
-# Ruta para manejar errores 404
+@app.route('/delete/<string:product_id>')
+def delete(product_id):
+    products = db['products']
+    products.delete_one({'_id': ObjectId(product_id)})
+    return redirect(url_for('inicio'))
+
+@app.route('/edit/<string:product_id>', methods=['POST'])
+def edit(product_id):
+    products = db['products']
+    name = request.form['name']
+    price = request.form['price']
+    quantity = request.form['quantity']
+
+    if name and price and quantity:
+        products.update_one(
+            {'_id': ObjectId(product_id)},
+            {'$set': {'name': name, 'price': price, 'quantity': quantity}}
+        )
+        return redirect(url_for('inicio'))
+    else:
+        return notFound()
+
 @app.errorhandler(404)
 def notFound(error=None):
     message = {
@@ -41,6 +58,6 @@ def notFound(error=None):
     response.status_code = 404
     return response
 
-# Ejecutar la app
 if __name__ == '__main__':
     app.run(debug=True)
+
